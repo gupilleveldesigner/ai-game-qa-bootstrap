@@ -7,6 +7,7 @@ import { applySetupPlan, createSetupPlan, validateSetup } from "./lib/plan.mjs";
 import { loadRules, promoteIssue } from "./lib/rules.mjs";
 import { selectRules } from "./lib/suites.mjs";
 import { runDoctor } from "./lib/doctor.mjs";
+import { parseArguments } from "./lib/arguments.mjs";
 
 const HELP = `AI Game QA Bootstrap v0.1.0
 
@@ -18,7 +19,7 @@ Usage:
   node scripts/qa-bootstrap.mjs doctor [--project PATH]
   node scripts/qa-bootstrap.mjs promote --issue FILE [--project PATH] [--write]
   node scripts/qa-bootstrap.mjs select --suite fast|nightly|release [--project PATH]
-                                      [--changed FILE ...] [--tag TAG ...]
+                                      [--changed FILE [FILE ...]] [--tag TAG [TAG ...]]
 
 Safety defaults:
   - inspect, plan, doctor, validate, promote, and select do not execute game code.
@@ -26,28 +27,6 @@ Safety defaults:
   - generated writes are restricted to .ai-game-qa.
   - modified generated files are reported as conflicts, not overwritten.
 `;
-
-function parseArguments(argv) {
-  const values = { _: [], changed: [], tag: [] };
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (!token.startsWith("--")) {
-      values._.push(token);
-      continue;
-    }
-    const key = token.slice(2);
-    if (["write", "help"].includes(key)) {
-      values[key] = true;
-      continue;
-    }
-    const next = argv[index + 1];
-    if (!next || next.startsWith("--")) throw new Error(`Option --${key} requires a value.`);
-    index += 1;
-    if (key === "changed" || key === "tag") values[key].push(next);
-    else values[key] = next;
-  }
-  return values;
-}
 
 function serializablePlan(plan) {
   return {
@@ -69,6 +48,7 @@ async function main() {
     process.stdout.write(HELP);
     return;
   }
+  if (args._.length > 1) throw new Error(`Unexpected positional arguments: ${args._.slice(1).join(" ")}`);
 
   const project = args.project ?? process.cwd();
   let result;

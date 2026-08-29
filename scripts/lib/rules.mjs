@@ -10,6 +10,8 @@ import {
   walkFiles,
   writeJsonAtomic
 } from "./fs-safe.mjs";
+import { validateJsonSchema } from "./json-schema.mjs";
+import { qaIssueSchema, qaRuleSchema } from "./schemas.mjs";
 
 const LANE_PREFIX = {
   tech: "TECH",
@@ -80,6 +82,8 @@ function evidenceForLane(lane, issue) {
 }
 
 export function buildRuleFromIssue(issue, options = {}) {
+  const issueValidation = validateIssue(issue);
+  if (!issueValidation.ok) throw new Error(`Invalid issue: ${issueValidation.errors.join(", ")}`);
   const eligibility = promotionEligibility(issue);
   if (!eligibility.eligible && !options.allowIneligible) {
     throw new Error(`Issue is not eligible for rule promotion: ${eligibility.reason}`);
@@ -124,16 +128,11 @@ export function buildRuleFromIssue(issue, options = {}) {
 }
 
 export function validateRule(rule) {
-  const errors = [];
-  if (rule?.schemaVersion !== SCHEMA_VERSION) errors.push("schemaVersion must be 1");
-  if (!/^[A-Z0-9][A-Z0-9-]{2,119}$/.test(rule?.id ?? "")) errors.push("id is invalid");
-  if (!QA_LANES.includes(rule?.lane)) errors.push("lane is invalid");
-  if (!EXECUTION_METHODS.includes(rule?.executionMethod)) errors.push("executionMethod is invalid");
-  if (typeof rule?.title !== "string" || !rule.title.trim()) errors.push("title is required");
-  if (!Array.isArray(rule?.cadence) || rule.cadence.length === 0) errors.push("cadence is required");
-  if (typeof rule?.oracle?.expected !== "string" || !rule.oracle.expected.trim()) errors.push("oracle.expected is required");
-  if (typeof rule?.oracle?.failureCondition !== "string" || !rule.oracle.failureCondition.trim()) errors.push("oracle.failureCondition is required");
-  return { ok: errors.length === 0, errors };
+  return validateJsonSchema(rule, qaRuleSchema);
+}
+
+export function validateIssue(issue) {
+  return validateJsonSchema(issue, qaIssueSchema);
 }
 
 export async function promoteIssue(inputRoot, issue, options = {}) {
@@ -143,7 +142,9 @@ export async function promoteIssue(inputRoot, issue, options = {}) {
   const absolute = resolveInside(root, relative);
   await assertNoSymlinkInPath(root, relative);
 
-  if (!(await pathExists(resolveInside(root, `${OUTPUT_DIR}/config.json`)))) {
+  const configPath = `${OUTPUT_DIR}/config.json`;
+  await assertNoSymlinkInPath(root, configPath);
+  if (!(await pathExists(resolveInside(root, configPath)))) {
     throw new Error("Initialize the QA environment before promoting issues.");
   }
 
@@ -162,9 +163,12 @@ export async function promoteIssue(inputRoot, issue, options = {}) {
 
 export async function loadRules(inputRoot) {
   const root = await canonicalProjectRoot(inputRoot);
-  const rulesRoot = resolveInside(root, `${OUTPUT_DIR}/rules`);
+  const rulesPath = `${OUTPUT_DIR}/rules`;
+  await assertNoSymlinkInPath(root, rulesPath);
+  const rulesRoot = resolveInside(root, rulesPath);
   if (!(await pathExists(rulesRoot))) return [];
   const scan = await walkFiles(rulesRoot, { excludes: [], maxFiles: 10000 });
+  if (scan.symlinks.length > 0) throw new Error(`Rule registry contains symbolic links: ${scan.symlinks.join(", ")}`);
   const rules = [];
   for (const relative of scan.files.filter((file) => file.endsWith(".json")).sort()) {
     const absolute = path.join(rulesRoot, relative);

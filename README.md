@@ -166,8 +166,10 @@ Fast selection never replaces the complete Nightly and Release suites.
 - The default is dry-run.
 - Project code is not executed during detection.
 - Project symlinks are not followed during scanning or fingerprinting.
-- A symlink in the generated output path blocks writes.
+- A symlink in any generated path component blocks reads, validation, and writes.
 - User-modified generated files are conflicts, not overwrite targets.
+- Apply revalidates the plan and every target immediately before writing; stale plans are rejected.
+- Generated configuration and QA rules are structurally validated, not only parsed as JSON.
 - Source fingerprinting excludes `.ai-game-qa/` and verifies that apply did not modify game source.
 - No global install, elevation, registry change, or security bypass is used.
 

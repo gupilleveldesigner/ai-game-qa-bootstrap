@@ -154,8 +154,9 @@ export async function detectProject(inputRoot = process.cwd()) {
     signals.push(makeSignal("monogame", 0.94, `${monoProject} references MonoGame/FNA/XNA`, { target: "desktop", adapterHint: "engine-native" }));
   }
 
-  if (packageJson || indexPath) {
-    const framework = detectWebFramework(packageJson, indexPrefix);
+  const webFramework = detectWebFramework(packageJson, indexPrefix);
+  if (indexPath || webFramework) {
+    const framework = webFramework;
     signals.push(makeSignal("web", indexPath ? 0.95 : 0.78, indexPath ? `Found ${indexPath}` : "Found package.json", {
       target: "web",
       framework: framework ?? "generic-web",

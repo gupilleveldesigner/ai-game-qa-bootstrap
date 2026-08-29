@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { buildCapabilityMatrix } from "../scripts/lib/capabilities.mjs";
+import { parseArguments } from "../scripts/lib/arguments.mjs";
 import { detectProject } from "../scripts/lib/detect.mjs";
 import {
   assertSafeRelativePath,
@@ -22,6 +23,7 @@ import {
 import {
   buildRuleFromIssue,
   inferLane,
+  loadRules,
   promoteIssue,
   promotionEligibility
 } from "../scripts/lib/rules.mjs";
@@ -396,4 +398,89 @@ test("48 Release includes all enabled rules and excludes disabled rules", () => 
   const result = selectRules({ rules, suite: "release" });
   assert.deepEqual(result.selected.map((item) => item.id), ["PLAY-B", "TECH-A"]);
   assert.deepEqual(result.excluded, [{ id: "TECH-DISABLED", reason: "disabled" }]);
+});
+
+test("49 package-only Node tooling falls back to generic detection", async (t) => {
+  const root = await makeFixture(t, { "package.json": packageJson({ scripts: { test: "node --test" } }) });
+  assert.equal((await detectProject(root)).primary.engine, "generic");
+});
+
+test("50 apply rejects a stale plan and preserves a newly created user file", async (t) => {
+  const root = await makeFixture(t, { "index.html": "<canvas></canvas>" });
+  const plan = await createSetupPlan(root);
+  const configPath = path.join(root, ".ai-game-qa", "config.json");
+  await mkdir(path.dirname(configPath), { recursive: true });
+  await writeFile(configPath, "{\n  \"userModified\": true\n}\n", "utf8");
+  await assert.rejects(applySetupPlan(plan, { write: true }), /Setup plan is stale/);
+  assert.equal(JSON.parse(await readFile(configPath, "utf8")).userModified, true);
+});
+
+test("51 plan and validation reject a nested generated-file symlink", async (t) => {
+  const root = await makeFixture(t, { "index.html": "<canvas></canvas>" });
+  await applySetupPlan(await createSetupPlan(root), { write: true });
+  const external = await mkdtemp(path.join(os.tmpdir(), "ai-game-qa-nested-link-"));
+  t.after(async () => rm(external, { recursive: true, force: true }));
+  const configPath = path.join(root, ".ai-game-qa", "config.json");
+  const externalConfig = path.join(external, "config.json");
+  await writeFile(externalConfig, await readFile(configPath, "utf8"), "utf8");
+  await rm(configPath);
+  try {
+    await symlink(externalConfig, configPath, process.platform === "win32" ? "file" : undefined);
+  } catch (error) {
+    if (error?.code === "EPERM") return;
+    throw error;
+  }
+  await assert.rejects(createSetupPlan(root), /symbolic link/);
+  const validation = await validateSetup(root);
+  assert.equal(validation.ok, false);
+  assert.equal(validation.errors.some((error) => error.code === "unsafe_symlink"), true);
+});
+
+test("52 validate rejects structurally empty generated config", async (t) => {
+  const root = await makeFixture(t, { "index.html": "<canvas></canvas>" });
+  await applySetupPlan(await createSetupPlan(root), { write: true });
+  await writeFile(path.join(root, ".ai-game-qa", "config.json"), "{}\n", "utf8");
+  const validation = await validateSetup(root);
+  assert.equal(validation.ok, false);
+  assert.equal(validation.errors.some((error) => error.code === "invalid_generated_structure"), true);
+});
+
+test("53 rule loading and setup validation reject incomplete rules", async (t) => {
+  const root = await makeFixture(t, { "index.html": "<canvas></canvas>" });
+  await applySetupPlan(await createSetupPlan(root), { write: true });
+  const badRule = {
+    schemaVersion: 1,
+    id: "BAD-RULE",
+    title: "Incomplete rule",
+    lane: "tech",
+    executionMethod: "deterministic",
+    cadence: ["nightly"],
+    oracle: { expected: "x", failureCondition: "y" }
+  };
+  await writeFile(path.join(root, ".ai-game-qa", "rules", "tech", "BAD-RULE.json"), `${JSON.stringify(badRule)}\n`, "utf8");
+  await assert.rejects(loadRules(root), /Invalid rule/);
+  const validation = await validateSetup(root);
+  assert.equal(validation.errors.some((error) => error.code === "invalid_rule_registry"), true);
+});
+
+test("54 CLI parser accepts multiple changed files and tags", () => {
+  const args = parseArguments(["select", "--suite", "fast", "--changed", "src/a.js", "src/b.js", "--tag", "combat", "ui"]);
+  assert.deepEqual(args.changed, ["src/a.js", "src/b.js"]);
+  assert.deepEqual(args.tag, ["combat", "ui"]);
+});
+
+test("55 CLI parser rejects unknown options", () => {
+  assert.throws(() => parseArguments(["inspect", "--projet", "."]), /Unknown option/);
+});
+
+test("56 issue promotion rejects fields outside the issue schema", () => {
+  assert.throws(() => buildRuleFromIssue(issue({ unexpected: true })), /Invalid issue/);
+});
+
+test("57 apply rejects a stale source fingerprint before creating output", async (t) => {
+  const root = await makeFixture(t, { "index.html": "<canvas></canvas>", "src/game.js": "export const hp = 10;" });
+  const plan = await createSetupPlan(root);
+  await writeFile(path.join(root, "src/game.js"), "export const hp = 11;", "utf8");
+  await assert.rejects(applySetupPlan(plan, { write: true }), /project source changed/);
+  await assert.rejects(readFile(path.join(root, ".ai-game-qa", "config.json"), "utf8"), { code: "ENOENT" });
 });

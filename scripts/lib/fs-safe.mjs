@@ -85,7 +85,7 @@ export async function assertNoSymlinkInPath(root, relativePath) {
     try {
       const info = await lstat(cursor);
       if (info.isSymbolicLink()) {
-        throw new Error(`Refusing to write through symbolic link: ${normalizeSlashes(path.relative(root, cursor))}`);
+        throw new Error(`Refusing symbolic link in project-managed path: ${normalizeSlashes(path.relative(root, cursor))}`);
       }
     } catch (error) {
       if (error?.code === "ENOENT") return;

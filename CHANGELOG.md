@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Revalidate setup plans and target hashes immediately before writes so stale plans cannot overwrite user changes.
+- Reject symbolic links in nested generated paths during planning, validation, rule loading, and writes.
+- Validate generated configuration and QA rules against their required structure.
+- Avoid classifying package-only Node.js tooling as a web game project.
+- Accept multiple `--changed` and `--tag` values and reject unknown CLI options.
+- Add standalone CI across Node.js 20, 22, and 24.
+
 ## 0.1.0 - 2026-08-29
 
 - Added read-only project inspection and multi-engine detection.

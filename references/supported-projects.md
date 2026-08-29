@@ -4,7 +4,7 @@ Detection is broader than bundled runtime support.
 
 | Project family | Detection marker examples | v0.1 environment setup | Bundled runtime control |
 |---|---|---:|---:|
-| HTML5/Web | `index.html`, `package.json` | yes | no; web adapter required |
+| HTML5/Web | `index.html`, or a recognized web-game framework dependency in `package.json` | yes | no; web adapter required |
 | Phaser/Pixi/Three/Babylon | package dependencies or export HTML | yes | no; web adapter required |
 | LÖVE2D | root `main.lua` | yes | no; LÖVE adapter required |
 | Godot | `project.godot` | yes | no; target-specific adapter required |
