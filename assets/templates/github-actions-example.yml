@@ -1,0 +1,21 @@
+# Copy and adapt this file to .github/workflows/ai-game-qa-bootstrap.yml
+# in the repository that vendors this skill.
+name: AI Game QA Bootstrap Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+jobs:
+  test-bootstrap:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .agents/skills/ai-game-qa-bootstrap
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test

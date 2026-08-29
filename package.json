@@ -1,0 +1,25 @@
+{
+  "name": "ai-game-qa-bootstrap",
+  "version": "0.1.0",
+  "description": "Engine-agnostic AI QA environment bootstrap skill for game projects.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "inspect": "node scripts/qa-bootstrap.mjs inspect",
+    "plan": "node scripts/qa-bootstrap.mjs plan",
+    "doctor": "node scripts/qa-bootstrap.mjs doctor",
+    "validate": "node scripts/qa-bootstrap.mjs validate"
+  },
+  "keywords": [
+    "codex-skill",
+    "game-qa",
+    "playtesting",
+    "visual-qa",
+    "technical-qa"
+  ],
+  "license": "MIT"
+}
