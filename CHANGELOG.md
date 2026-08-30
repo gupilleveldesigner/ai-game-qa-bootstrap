@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.1 - 2026-08-30
+
 - Revalidate setup plans and target hashes immediately before writes so stale plans cannot overwrite user changes.
 - Reject symbolic links in nested generated paths during planning, validation, rule loading, and writes.
 - Validate generated configuration and QA rules against their required structure.
