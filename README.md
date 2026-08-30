@@ -182,10 +182,11 @@ This tool does **not** sandbox a malicious game, build script, plugin, or binary
 ## Development
 
 ```bash
+npm ci --ignore-scripts
 npm test
 ```
 
-The test suite uses temporary projects and does not touch real game repositories.
+The test suite uses temporary projects and does not touch real game repositories. Pull requests and pushes to `main` or `master` run the suite on every supported Node.js major version (20 and 22).
 
 ## License
 
